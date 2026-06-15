@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Agent Runner — Redesign</title>
+<style>
+  :root{
+    --bg:#070912; --bg2:#0b1020; --panel:#0f1626; --panel2:#121b30;
+    --line:rgba(148,163,184,.12); --line2:rgba(148,163,184,.20);
+    --txt:#e8edf7; --muted:#94a3b8; --faint:#64748b;
+    --brand:#7c5cff; --brand2:#5b8cff; --accent:#22d3ee;
+    --ok:#34d399; --warn:#fbbf24; --err:#fb7185;
+    --radius:18px; --shadow:0 24px 60px -28px rgba(0,0,0,.85);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--txt);
+    background:
+      radial-gradient(1100px 600px at 85% -8%, rgba(124,92,255,.18), transparent 60%),
+      radial-gradient(900px 520px at -5% 10%, rgba(34,211,238,.10), transparent 55%),
+      var(--bg);
+    min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  .app{display:grid; grid-template-columns:264px 1fr; min-height:100vh}
+
+  /* Sidebar */
+  .side{
+    border-right:1px solid var(--line); padding:22px 18px;
+    display:flex; flex-direction:column; gap:22px;
+    background:linear-gradient(180deg, rgba(15,22,38,.6), rgba(7,9,18,.2));
+    position:sticky; top:0; height:100vh;
+  }
+  .brand{display:flex; align-items:center; gap:12px}
+  .logo{
+    width:42px; height:42px; border-radius:13px; display:grid; place-items:center;
+    font-weight:800; font-size:14px; letter-spacing:.5px; color:white;
+    background:linear-gradient(135deg,var(--brand),var(--brand2));
+    box-shadow:0 8px 24px -8px rgba(124,92,255,.8);
+  }
+  .brand b{font-size:15px; display:block; line-height:1.1}
+  .brand span{font-size:11px; color:var(--muted)}
+  .nav{display:flex; flex-direction:column; gap:4px}
+  .nav a{
+    display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:11px;
+    color:var(--muted); text-decoration:none; font-size:13.5px; font-weight:500;
+    transition:.15s;
+  }
+  .nav a .ic{width:17px;text-align:center;opacity:.8}
+  .nav a:hover{background:var(--panel); color:var(--txt)}
+  .nav a.active{background:linear-gradient(90deg,rgba(124,92,255,.18),rgba(124,92,255,.02)); color:#fff; box-shadow:inset 0 0 0 1px rgba(124,92,255,.25)}
+  .stats{display:flex; flex-direction:column; gap:10px}
+  .stat{
+    border:1px solid var(--line); border-radius:14px; padding:13px 14px;
+    background:var(--panel); display:flex; align-items:center; justify-content:space-between;
+  }
+  .stat .v{font-size:22px; font-weight:800; letter-spacing:-.5px}
+  .stat .l{font-size:11.5px; color:var(--muted)}
+  .stat .ring{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:14px;
+    background:rgba(124,92,255,.12); color:var(--brand)}
+  .tip{font-size:11.5px; color:var(--faint); line-height:1.5; border-top:1px solid var(--line); padding-top:16px; margin-top:auto}
+
+  /* Main */
+  .main{padding:30px 36px 48px; max-width:1180px}
+  .topbar{display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin-bottom:26px}
+  .eyebrow{font-size:11px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase; color:var(--brand2)}
+  h1{font-size:30px; line-height:1.15; margin:8px 0 10px; letter-spacing:-.8px; max-width:560px}
+  .lead{color:var(--muted); font-size:14px; line-height:1.6; max-width:560px; margin:0}
+  .status{
+    border:1px solid var(--line2); border-radius:14px; padding:14px 16px; min-width:210px;
+    background:linear-gradient(180deg,var(--panel2),var(--panel)); box-shadow:var(--shadow);
+  }
+  .status .row{display:flex;align-items:center;gap:9px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 4px rgba(52,211,153,.18)}
+  .status b{font-size:14px}
+  .status small{display:block;color:var(--muted);font-size:11.5px;margin-top:7px}
+
+  .grid{display:grid; grid-template-columns:1.55fr 1fr; gap:20px; align-items:start}
+  .card{
+    border:1px solid var(--line); border-radius:var(--radius); padding:20px;
+    background:linear-gradient(180deg, rgba(18,27,48,.7), rgba(15,22,38,.55));
+    box-shadow:var(--shadow); margin-bottom:20px;
+  }
+  .card h3{margin:0 0 4px; font-size:14px}
+  .card .sub{color:var(--muted); font-size:12px; margin:0 0 16px}
+
+  /* Agent cards */
+  .agents{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
+  .agent{
+    border:1px solid var(--line); border-radius:14px; padding:14px; background:var(--panel);
+    position:relative; transition:.15s; cursor:pointer;
+  }
+  .agent:hover{border-color:var(--line2)}
+  .agent.sel{border-color:rgba(124,92,255,.6); background:linear-gradient(180deg,rgba(124,92,255,.14),rgba(124,92,255,.02)); box-shadow:0 0 0 1px rgba(124,92,255,.35)}
+  .agent .ico{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:15px;margin-bottom:10px;
+    background:rgba(124,92,255,.14)}
+  .agent b{font-size:13.5px; display:block}
+  .agent .badge{display:inline-block; margin-top:7px; font-size:10.5px; font-weight:600; padding:2px 8px; border-radius:999px}
+  .badge.green{background:rgba(52,211,153,.14); color:var(--ok)}
+  .badge.gray{background:rgba(148,163,184,.14); color:var(--muted)}
+  .agent em{display:block; font-style:normal; color:var(--faint); font-size:11px; margin-top:9px; line-height:1.45}
+
+  /* Composer */
+  label.fld{font-size:12px; color:var(--muted); display:block; margin-bottom:7px; font-weight:600}
+  textarea{
+    width:100%; min-height:104px; resize:vertical; border-radius:13px; padding:13px 14px;
+    background:#0a0f1c; border:1px solid var(--line); color:var(--txt); font-size:13.5px; font-family:inherit; line-height:1.55;
+  }
+  textarea::placeholder{color:#475569}
+  textarea:focus,select:focus{outline:none; border-color:rgba(124,92,255,.55); box-shadow:0 0 0 3px rgba(124,92,255,.16)}
+  .drop{
+    margin-top:12px; border:1.5px dashed var(--line2); border-radius:13px; padding:16px; display:flex; gap:13px; align-items:center;
+    color:var(--muted); cursor:pointer; transition:.15s; background:rgba(124,92,255,.03);
+  }
+  .drop:hover{border-color:rgba(124,92,255,.5); color:var(--txt)}
+  .drop .up{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:16px;background:rgba(124,92,255,.14);color:var(--brand)}
+  .drop b{font-size:12.5px;color:var(--txt);display:block}
+  .drop small{font-size:11px}
+
+  /* Options */
+  .seg{display:flex; gap:8px; flex-wrap:wrap}
+  .seg button{
+    flex:1; min-width:120px; text-align:left; border:1px solid var(--line); background:var(--panel); color:var(--txt);
+    border-radius:11px; padding:10px 12px; cursor:pointer; font-family:inherit; transition:.15s;
+  }
+  .seg button.on{border-color:rgba(124,92,255,.55); background:linear-gradient(180deg,rgba(124,92,255,.16),transparent)}
+  .seg button b{font-size:12.5px; display:block}
+  .seg button small{font-size:10.5px; color:var(--muted)}
+  select{width:100%; padding:11px 12px; border-radius:11px; background:#0a0f1c; border:1px solid var(--line); color:var(--txt); font-family:inherit; font-size:13px}
+  .opt{margin-top:14px}
+  .opt > .lbl{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:8px}
+  .toggle{display:flex; gap:11px; align-items:flex-start; padding:11px 0; border-top:1px solid var(--line)}
+  .sw{width:38px;height:22px;border-radius:999px;background:linear-gradient(90deg,var(--brand),var(--brand2));position:relative;flex:0 0 auto;margin-top:2px}
+  .sw::after{content:"";position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:3px;right:3px}
+  .sw.off{background:#1e293b}.sw.off::after{right:auto;left:3px}
+  .toggle b{font-size:12.5px}.toggle small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+
+  .composer-foot{display:flex; align-items:center; justify-content:space-between; margin-top:18px; padding-top:16px; border-top:1px solid var(--line)}
+  .composer-foot span{font-size:11.5px; color:var(--faint)}
+  .btn{
+    border:none; border-radius:12px; padding:11px 22px; font-weight:700; font-size:13.5px; cursor:pointer; color:#fff;
+    background:linear-gradient(135deg,var(--brand),var(--brand2)); box-shadow:0 12px 26px -12px rgba(124,92,255,.9);
+    display:flex; align-items:center; gap:8px;
+  }
+
+  /* Runs */
+  .runhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .pill{font-size:11px;font-weight:600;color:var(--accent);background:rgba(34,211,238,.12);padding:3px 10px;border-radius:999px}
+  .run{border:1px solid var(--line); border-radius:13px; padding:13px 14px; margin-bottom:10px; background:var(--panel)}
+  .run .r1{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .run b{font-size:13px}
+  .run .meta{font-size:11px;color:var(--muted);margin-top:3px}
+  .tag{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px}
+  .tag.run{background:rgba(34,211,238,.14);color:var(--accent)}
+  .tag.done{background:rgba(52,211,153,.14);color:var(--ok)}
+  .bar{height:6px;border-radius:999px;background:#0a0f1c;margin-top:11px;overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--brand),var(--accent))}
+  .logline{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#7dd3fc;background:#080d18;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:11px;line-height:1.7}
+  .logline .t{color:#475569}
+  .arts{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
+  .art{font-size:11px;color:var(--txt);background:#0a0f1c;border:1px solid var(--line);border-radius:9px;padding:6px 10px;display:flex;gap:7px;align-items:center}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">AR</div>
+      <div><b>Agent Runner</b><span>Command center</span></div>
+    </div>
+    <nav class="nav">
+      <a href="#" class="active"><span class="ic">⚡</span> New run</a>
+      <a href="#"><span class="ic">🕓</span> Run history</a>
+      <a href="#"><span class="ic">📦</span> Artifacts</a>
+      <a href="#"><span class="ic">💚</span> API health</a>
+      <a href="#"><span class="ic">⚙️</span> Settings</a>
+    </nav>
+    <div class="stats">
+      <div class="stat"><div><div class="v">3</div><div class="l">Available agents</div></div><div class="ring">🤖</div></div>
+      <div class="stat"><div><div class="v">2</div><div class="l">Runs in session</div></div><div class="ring">▶</div></div>
+      <div class="stat"><div><div class="v">1</div><div class="l">Completed runs</div></div><div class="ring">✓</div></div>
+    </div>
+    <p class="tip">Tip: attach source files, screenshots, CSVs, or notes, then ask the agent to create named artifacts for download.</p>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="eyebrow">Agent command center</div>
+        <h1>Run coding agents. Upload context. Download the result.</h1>
+        <p class="lead">A production-ready dashboard for launching Claude Code, Codex, or a safe mock runner in isolated workspaces with live logs, run settings, and downloadable artifacts.</p>
+      </div>
+      <div class="status">
+        <div class="row"><span class="dot"></span><b>All systems online</b></div>
+        <small>3 agents available · API healthy · avg start 1.2s</small>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- Left column -->
+      <div>
+        <div class="card">
+          <h3>Choose coding agent</h3>
+          <p class="sub">Pick the engine that fits the task. Disabled agents need auth or a PATH entry.</p>
+          <div class="agents">
+            <div class="agent sel">
+              <div class="ico">◈</div><b>Claude Code</b>
+              <span class="badge green">Ready</span>
+              <em>Best for repo edits and implementation work</em>
+            </div>
+            <div class="agent">
+              <div class="ico">◇</div><b>Codex</b>
+              <span class="badge green">Ready</span>
+              <em>Strong for focused coding and CLI tasks</em>
+            </div>
+            <div class="agent">
+              <div class="ico">▢</div><b>Mock Runner</b>
+              <span class="badge gray">Demo</span>
+              <em>Safe runner for smoke tests and artifact checks</em>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Task brief</h3>
+          <p class="sub">Describe the goal and attach any supporting files.</p>
+          <label class="fld">Instructions</label>
+          <textarea placeholder="Example: Analyze the attached CSV, create a polished summary, and export a report.md plus a cleaned CSV file."></textarea>
+          <div class="drop">
+            <div class="up">↥</div>
+            <div><b>Attach files to the task</b><small>Drop files here or click to browse · up to 5 files, 5 MB each</small></div>
+          </div>
+          <div class="composer-foot">
+            <span>0 characters · 0 files attached</span>
+            <button class="btn">▶ Run agent</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right column -->
+      <div>
+        <div class="card">
+          <h3>Run options</h3>
+          <p class="sub">Tune execution and output format.</p>
+          <div class="opt">
+            <div class="lbl">Execution mode</div>
+            <div class="seg" style="flex-direction:column">
+              <button class="on"><b>Balanced</b><small>Default execution with concise reasoning</small></button>
+              <button><b>Deep work</b><small>More analysis, checks, and verification</small></button>
+              <button><b>Fast pass</b><small>Prioritize speed for simple tasks</small></button>
+            </div>
+          </div>
+          <div class="opt">
+            <div class="lbl">Preferred output</div>
+            <select>
+              <option>Auto</option><option>Markdown</option><option>CSV</option>
+              <option>JSON</option><option>HTML</option><option>PDF-ready Markdown</option>
+            </select>
+          </div>
+          <div class="toggle"><div class="sw"></div><div><b>Ask for a short plan</b><small>Useful for multi-step work</small></div></div>
+          <div class="toggle"><div class="sw"></div><div><b>Prefer downloadable files</b><small>Ask the agent to write outputs to disk</small></div></div>
+        </div>
+
+        <div class="card">
+          <div class="runhead"><h3 style="margin:0">Recent runs</h3><span class="pill">Live</span></div>
+          <div class="run">
+            <div class="r1"><div><b>Clean &amp; summarize sales CSV</b><div class="meta">Claude Code · started 12s ago</div></div><span class="tag run">Running</span></div>
+            <div class="bar"><i style="width:62%"></i></div>
+            <div class="logline"><span class="t">[00:12]</span> Parsing dataset → 1,482 rows<br><span class="t">[00:13]</span> Writing report.md…</div>
+          </div>
+          <div class="run">
+            <div class="r1"><div><b>Generate landing page copy</b><div class="meta">Codex · completed 4m ago</div></div><span class="tag done">Done</span></div>
+            <div class="arts">
+              <span class="art">📄 report.md</span>
+              <span class="art">📊 cleaned.csv</span>
+              <span class="art">⬇ Download all</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>
